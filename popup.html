@@ -28,11 +28,12 @@
     <section class="panel words-panel" aria-labelledby="words-title">
       <div class="words-header">
         <h2 id="words-title">已收集</h2>
-        <span id="word-count" aria-live="polite"></span>
+        <div class="words-actions"><span id="word-count" aria-live="polite"></span><button id="export-words" type="button" disabled>导出 CSV</button><button id="import-words" type="button" disabled>导入 CSV</button><input id="import-file" type="file" accept=".csv,text/csv" hidden></div>
       </div>
       <ul id="word-list"></ul>
       <p id="empty-state" hidden>还没有收集文字。<br>去网页选个词试试吧。</p>
       <p id="list-status" class="feedback" role="status" aria-live="polite"></p>
+      <p id="import-status" class="feedback" role="status" aria-live="polite"></p>
     </section>
 
     <section class="panel translation-panel" aria-labelledby="translation-title">

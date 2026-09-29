@@ -17,19 +17,21 @@ async function handleMessage(message, sender) {
   const config = await chrome.storage.local.get(['collectionEnabled', 'translationEnabled', 'baiduAppId', 'baiduSecret']);
   if (config.collectionEnabled !== true) return { ok: false, code: 'disabled' };
   const key = 'word:' + text;
+  const collectedAt = Date.now();
   if (config.translationEnabled === true) {
     if (typeof config.baiduAppId !== 'string' || !config.baiduAppId.trim() ||
         typeof config.baiduSecret !== 'string' || !config.baiduSecret.trim()) return { ok: false, code: 'failed' };
     const translation = await BaiduTranslate.translate(text, config.baiduAppId, config.baiduSecret);
     const { collectionEnabled } = await chrome.storage.local.get('collectionEnabled');
     if (collectionEnabled !== true) return { ok: false, code: 'disabled' };
-    await chrome.storage.local.set({ [key]: { text, translation } });
+    await chrome.storage.local.set({ [key]: { text, translation, collectedAt } });
   } else {
     const existing = (await chrome.storage.local.get(key))[key];
     const { collectionEnabled } = await chrome.storage.local.get('collectionEnabled');
     if (collectionEnabled !== true) return { ok: false, code: 'disabled' };
-    if (!(existing && typeof existing === 'object' && typeof existing.translation === 'string' &&
-          existing.translation.trim())) await chrome.storage.local.set({ [key]: text });
+    const translation = existing && typeof existing === 'object' &&
+      typeof existing.translation === 'string' && existing.translation.trim() ? existing.translation : undefined;
+    await chrome.storage.local.set({ [key]: { text, ...(translation ? { translation } : {}), collectedAt } });
   }
   return { ok: true };
 }

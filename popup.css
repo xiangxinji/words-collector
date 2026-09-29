@@ -31,7 +31,11 @@ h2 { font-size: 14px; font-weight: 650; }
 .hint { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .feedback { margin-top: 8px; color: var(--danger); font-size: 12px; }
 .feedback:empty { display: none; }
-#translation-status[data-tone="success"] { color: var(--success); }
+#translation-status[data-tone="success"], #import-status[data-tone="success"] { color: var(--success); }
+.words-actions { display: flex; align-items: center; gap: 8px; }
+#export-words, #import-words { min-height: 32px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+#export-words:hover:not(:disabled), #import-words:hover:not(:disabled) { background: #edf2fc; }
+#export-words:disabled, #import-words:disabled { opacity: .55; cursor: default; }
 .words-header, .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #word-count { border-radius: 999px; padding: 2px 8px; background: #edf2fc; color: #294cae; font-size: 12px; white-space: nowrap; }
 #word-list { max-height: 126px; overflow-y: auto; list-style: none; margin: 8px 0 0; padding: 0; }

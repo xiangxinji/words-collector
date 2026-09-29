@@ -14,6 +14,7 @@ function worker(initial = {}, options = {}) {
   let restricted = false;
   const context = {
     TextEncoder, URLSearchParams, AbortSignal,
+    Date: { now: () => typeof options.now === 'function' ? options.now() : (options.now ?? 1750000000000) },
     crypto: { randomUUID: () => '123' },
     fetch: async (url, request) => {
       fetchCalls.push({ url, request });
@@ -71,9 +72,9 @@ test('collection without translation stays local and preserves an existing trans
   const w = worker({ collectionEnabled: true, 'word:hello': { text: 'hello', translation: '旧译文' } });
   assert.deepEqual(await w.send({ type: 'getEnabled' }), { enabled: true });
   assert.deepEqual(await w.send({ type: 'collect', text: '  hello  ' }), { ok: true });
-  assert.deepEqual(w.data['word:hello'], { text: 'hello', translation: '旧译文' });
+  assert.deepEqual(w.data['word:hello'], { text: 'hello', translation: '旧译文', collectedAt: 1750000000000 });
   assert.deepEqual(await w.send({ type: 'collect', text: 'offline' }), { ok: true });
-  assert.equal(w.data['word:offline'], 'offline');
+  assert.deepEqual(w.data['word:offline'], { text: 'offline', collectedAt: 1750000000000 });
   assert.equal(w.fetchCalls.length, 0);
 });
 
@@ -82,8 +83,8 @@ test('opt-in collection saves a trimmed word and the successful translation atom
   assert.deepEqual(await w.send({ type: 'getEnabled' }), { enabled: true });
   assert.equal(w.fetchCalls.length, 0);
   assert.deepEqual(await w.send({ type: 'collect', text: '  hello  ' }), { ok: true });
-  assert.deepEqual(w.data['word:hello'], { text: 'hello', translation: '你好' });
-  assert.deepEqual(w.writes, [{ 'word:hello': { text: 'hello', translation: '你好' } }]);
+  assert.deepEqual(w.data['word:hello'], { text: 'hello', translation: '你好', collectedAt: 1750000000000 });
+  assert.deepEqual(w.writes, [{ 'word:hello': { text: 'hello', translation: '你好', collectedAt: 1750000000000 } }]);
   assert.equal(w.fetchCalls.length, 1);
 });
 
@@ -130,5 +131,39 @@ test('rejects forged messages, non-web senders and oversized UTF-8 selections', 
   assert.deepEqual(await w.send({ type: 'inject', text: 'secret', url: 'https://attacker/' }), { ok: false, code: 'failed' });
   assert.deepEqual(await w.send({ type: 'collect', text: '中'.repeat(2001) }), { ok: false, code: 'failed' });
   assert.equal(w.fetchCalls.length, 0);
+  assert.equal(w.writes.length, 0);
+});
+test('collecting the same word again updates its recency without losing its translation', async () => {
+  let now = 1750000001000;
+  const w = worker({ collectionEnabled: true, 'word:repeat': { text: 'repeat', translation: '重复', collectedAt: 1750000000000 } },
+    { now: () => now });
+  assert.deepEqual(await w.send({ type: 'collect', text: 'repeat' }), { ok: true });
+  assert.deepEqual(w.data['word:repeat'], { text: 'repeat', translation: '重复', collectedAt: now });
+  now += 1000;
+  assert.deepEqual(await w.send({ type: 'collect', text: 'new' }), { ok: true });
+  assert.deepEqual(w.data['word:new'], { text: 'new', collectedAt: now });
+});
+
+test('recollecting an existing word replaces one record atomically and keeps it on failure', async () => {
+  const previous = { text: 'same', translation: '旧译文', collectedAt: 1750000000000 };
+  const data = { collectionEnabled: true, 'word:same': previous };
+  const failed = worker(data, { now: 1750000002000, failWrite: true });
+  assert.deepEqual(await failed.send({ type: 'collect', text: 'same' }), { ok: false, code: 'failed' });
+  assert.deepEqual(failed.data['word:same'], previous);
+  assert.deepEqual(Object.keys(failed.data).filter(key => key.startsWith('word:')), ['word:same']);
+
+  const updated = worker(data, { now: 1750000002000 });
+  assert.deepEqual(await updated.send({ type: 'collect', text: 'same' }), { ok: true });
+  assert.deepEqual(updated.data['word:same'], { ...previous, collectedAt: 1750000002000 });
+  assert.deepEqual(Object.keys(updated.data).filter(key => key.startsWith('word:')), ['word:same']);
+  assert.equal(updated.writes.length, 1);
+});
+
+test('failed translation does not remove or reorder an existing word', async () => {
+  const existing = { text: 'saved', translation: '已保存', collectedAt: 1750000000000 };
+  const w = worker({ collectionEnabled: true, translationEnabled: true, baiduAppId: 'APP', baiduSecret: 'SECRET', 'word:saved': existing },
+    { now: 1750000004000, fetch: async () => ({ ok: true, json: async () => ({ error_code: '54003' }) }) });
+  assert.deepEqual(await w.send({ type: 'collect', text: 'saved' }), { ok: false, code: 'failed' });
+  assert.deepEqual(w.data['word:saved'], existing);
   assert.equal(w.writes.length, 0);
 });
