@@ -51,8 +51,8 @@ async function showPopover(event) {
   document.body.appendChild(host);
   popover = host;
 
-  button.addEventListener('click', async () => {
-    if (popover !== host || button.disabled) return;
+  button.addEventListener('click', async event => {
+    if (!event.isTrusted || popover !== host || button.disabled) return;
     button.disabled = true;
     try {
       const result = await chrome.runtime.sendMessage({ type: 'collect', text });

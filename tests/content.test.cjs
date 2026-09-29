@@ -15,9 +15,9 @@ function element(tagName) {
   const listeners = {};
   const children = [];
   return {
-    tagName, style: {}, children,
+    tagName, style: {}, children, disabled: false,
     addEventListener(type, fn) { listeners[type] = fn; },
-    dispatch(type, event = {}) { return listeners[type]?.(event); },
+    dispatch(type, event = { isTrusted: true }) { return listeners[type]?.(event); },
     appendChild(child) { children.push(child); return child; },
     remove() { this.removed = true; },
     attachShadow() { this.shadowRoot = element('shadow'); return this.shadowRoot; }
@@ -240,4 +240,12 @@ test('a pending worker request blocks repeated clicks', async () => {
   assert.equal(p.messages.filter(m => m.type === 'collect').length, 1);
   release({ ok: true }); await pending;
   assert.equal(p.currentHost(), undefined);
+});
+test('synthetic page clicks cannot collect text or trigger translation', async () => {
+  const p = page({ collectionEnabled: true }, { selection: 'do not upload' });
+  await p.fire();
+  await p.button().dispatch('click', { isTrusted: false });
+  assert.equal(p.messages.filter(message => message.type === 'collect').length, 0);
+  assert.equal(p.storage['word:do not upload'], undefined);
+  assert.equal(p.button().disabled, false);
 });
