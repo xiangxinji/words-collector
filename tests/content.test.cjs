@@ -95,6 +95,17 @@ test('double-click only shows a button beside selected text; it does not save', 
   assert.equal(p.currentHost()?.style.backgroundColor, '#fff');
 });
 
+test('selection action uses the same compact blue visual language as the popup', async () => {
+  const p = page({ collectionEnabled: true }, { selection: 'word' });
+  await p.fire();
+  const host = p.currentHost();
+  const buttonStyle = host.shadowRoot.children.find(node => node.tagName === 'style').textContent;
+  assert.equal(host.style.width, '88px');
+  assert.equal(host.style.borderRadius, '12px');
+  assert.match(buttonStyle, /min-height: 36px/);
+  assert.match(buttonStyle, /background: #315dd1/);
+  assert.match(buttonStyle, /:focus-visible/);
+});
 test('clicking 收集 saves the snapshotted selection and closes the window', async () => {
   const p = page({ collectionEnabled: true }, { selection: '  Hello world  ' });
   await p.fire(); p.select('another word');

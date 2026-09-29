@@ -30,19 +30,19 @@ async function showPopover(event) {
   host.style.position = 'fixed';
   host.style.zIndex = '2147483647';
   host.style.boxSizing = 'border-box';
-  host.style.width = '76px';
-  host.style.padding = '5px';
-  host.style.border = '1px solid #dce1ea';
-  host.style.borderRadius = '10px';
+  host.style.width = '88px';
+  host.style.padding = '4px';
+  host.style.border = '1px solid #e3e8f0';
+  host.style.borderRadius = '12px';
   host.style.backgroundColor = '#fff';
-  host.style.boxShadow = '0 5px 18px #0003';
-  const left = rect.right + 80 <= window.innerWidth ? rect.right + 8 : rect.left - 80;
+  host.style.boxShadow = '0 4px 16px #16244326';
+  const left = rect.right + 96 <= window.innerWidth ? rect.right + 8 : rect.left - 96;
   host.style.left = `${Math.min(Math.max(8, left), Math.max(8, window.innerWidth - 80))}px`;
   host.style.top = `${Math.min(Math.max(8, rect.top), Math.max(8, window.innerHeight - 52))}px`;
 
   const shadow = host.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
-  style.textContent = 'button { all: initial; box-sizing: border-box; display: block; width: 100%; padding: 6px 0; text-align: center; border-radius: 6px; background: #315dd1; color: white; font: 14px/20px system-ui, sans-serif; cursor: pointer; box-shadow: 0 3px 12px #0003; } button:hover { background: #2448af; } button:focus-visible { outline: 2px solid #172c7c; outline-offset: 2px; } button:disabled { opacity: .6; cursor: wait; }';
+  style.textContent = 'button { all: initial; box-sizing: border-box; display: block; width: 100%; min-height: 36px; text-align: center; border-radius: 8px; background: #315dd1; color: white; font: 600 13px/20px system-ui, sans-serif; cursor: pointer; } button:hover { background: #2448af; } button:focus-visible { outline: 2px solid #315dd1; outline-offset: 3px; } button:disabled { opacity: .6; cursor: wait; }';
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = '收集';

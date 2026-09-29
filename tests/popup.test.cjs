@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 function element(tagName) {
   const handlers = new Map();
   return {
-    tagName, children: [], textContent: '',
+    tagName, children: [], textContent: '', dataset: {},
     addEventListener(type, fn) { handlers.set(type, fn); },
     setAttribute(name, value) { this[name] = value; },
     dispatch(type) { return handlers.get(type)?.(); },
@@ -79,6 +79,18 @@ test('MV3 popup manifest needs only storage', () => {
   for (const id of ['word-list', 'word-count', 'empty-state', 'list-status']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+});
+
+test('popup prioritizes collection and words while credentials stay behind a disclosure', () => {
+  const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
+  assert.ok(html.indexOf('id="collection-toggle"') < html.indexOf('id="word-list"'));
+  assert.ok(html.indexOf('id="word-list"') < html.indexOf('id="translation-toggle"'));
+  assert.match(html, /<details[^>]*class="credentials"[^>]*>\s*<summary>配置百度凭据<\/summary>/);
+  assert.ok(html.indexOf('<details') < html.indexOf('id="baidu-app-id"'));
+  assert.ok(html.indexOf('id="baidu-secret"') < html.indexOf('</details>'));
+  assert.ok(html.indexOf('只有点击「收集」') < html.indexOf('<details'));
+  assert.match(html, /id="collection-toggle"[^>]*disabled/);
+  assert.match(html, /id="translation-toggle"[^>]*disabled/);
 });
 
 test('missing setting defaults off; toggling saves and reopens on', async () => {
@@ -233,4 +245,30 @@ test('legacy words and translated objects show both texts safely and delete only
   assert.equal(p.storage['word:world'], undefined);
   assert.equal(p.storage['word:old'], 'old');
   assert.equal(p.wordCount.textContent, '共 1 条');
+});
+test('credential feedback distinguishes saved credentials from an error', async () => {
+  const p = popup(); await p.ready();
+  p.appId.value = 'APP';
+  p.secret.value = 'SECRET';
+  await p.saveSettings();
+  assert.equal(p.translationStatus.textContent, '凭据已保存');
+  assert.equal(p.translationStatus.dataset?.tone, 'success');
+
+  p.appId.value = 'OTHER';
+  await p.saveSettings();
+  assert.match(p.translationStatus.textContent, /密钥/);
+  assert.equal(p.translationStatus.dataset?.tone, 'error');
+});
+
+test('failed translation switch update is an error even after saving credentials', async () => {
+  const fail = { write: false };
+  const p = popup({}, fail); await p.ready();
+  p.appId.value = 'APP'; p.secret.value = 'SECRET';
+  await p.saveSettings();
+  assert.equal(p.translationStatus.dataset.tone, 'success');
+  fail.write = true;
+  p.translationToggle.checked = true;
+  await p.changeTranslation();
+  assert.match(p.translationStatus.textContent, /失败/);
+  assert.equal(p.translationStatus.dataset.tone, 'error');
 });

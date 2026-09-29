@@ -54,6 +54,7 @@ translationToggle.addEventListener('change', async () => {
   const previous = !translationToggle.checked;
   translationToggle.disabled = true;
   translationStatus.textContent = '';
+  translationStatus.dataset.tone = 'error';
   try {
     await chrome.storage.local.set({ translationEnabled: translationToggle.checked });
   } catch {
@@ -69,6 +70,7 @@ saveCredentials.addEventListener('click', async () => {
   const appId = appIdInput.value.trim();
   const secret = secretInput.value.trim();
   translationStatus.textContent = '';
+  translationStatus.dataset.tone = 'error';
   if (!appId || (!secret && (!hasSavedSecret || appId !== savedAppId))) {
     translationStatus.textContent = '请填写 App ID 和密钥';
     return;
@@ -79,6 +81,7 @@ saveCredentials.addEventListener('click', async () => {
     savedAppId = appId;
     hasSavedSecret = true;
     secretInput.value = '';
+    translationStatus.dataset.tone = 'success';
     translationStatus.textContent = '凭据已保存';
   } catch {
     translationStatus.textContent = '保存凭据失败，请重试';
