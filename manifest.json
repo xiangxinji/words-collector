@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Save selected webpage text locally when collection is enabled.",
   "permissions": ["storage"],
+  "minimum_chrome_version": "103",
+  "host_permissions": ["https://fanyi-api.baidu.com/*"],
+  "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup.html" },
   "content_scripts": [{ "matches": ["http://*/*", "https://*/*"], "js": ["content.js"] }]
 }

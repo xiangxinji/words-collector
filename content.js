@@ -19,8 +19,8 @@ async function showPopover(event) {
   const currentRequest = requestId;
 
   try {
-    const { collectionEnabled } = await chrome.storage.local.get('collectionEnabled');
-    if (!collectionEnabled || currentRequest !== requestId) return;
+    const { enabled } = await chrome.runtime.sendMessage({ type: 'getEnabled' });
+    if (!enabled || currentRequest !== requestId) return;
   } catch {
     return; // An unavailable extension store must not interfere with the webpage.
   }
@@ -52,14 +52,14 @@ async function showPopover(event) {
   popover = host;
 
   button.addEventListener('click', async () => {
-    if (popover !== host) return;
+    if (popover !== host || button.disabled) return;
     button.disabled = true;
     try {
-      const { collectionEnabled } = await chrome.storage.local.get('collectionEnabled');
+      const result = await chrome.runtime.sendMessage({ type: 'collect', text });
       if (popover !== host) return;
-      if (!collectionEnabled) return closePopover();
-      await chrome.storage.local.set({ ['word:' + text]: text });
-      if (popover === host) closePopover();
+      if (result?.ok || result?.code === 'disabled') return closePopover();
+      button.textContent = '重试';
+      button.title = '保存失败，请重试';
     } catch {
       button.textContent = '重试';
       button.title = '保存失败，请重试';

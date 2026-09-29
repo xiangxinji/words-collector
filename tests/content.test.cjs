@@ -31,10 +31,25 @@ function page(storage = {}, options = {}) {
   let selection = options.selection ?? '';
   let rect = options.rect ?? { left: 25, right: 75, top: 40, bottom: 58 };
   const writes = [];
-  const chrome = { storage: { local: {
-    async get() { if (options.read) return options.read(); return { collectionEnabled: storage.collectionEnabled }; },
-    async set(value) { if (options.failWrite) throw Error('write failed'); writes.push(value); Object.assign(storage, value); }
-  } } };
+  const messages = [];
+  const chrome = {
+    get storage() { throw Error('content script must not read storage directly'); },
+    runtime: { async sendMessage(message) {
+      messages.push(JSON.parse(JSON.stringify(message)));
+      if (message.type === 'getEnabled') {
+        if (options.read) return options.read();
+        return { enabled: storage.collectionEnabled === true };
+      }
+      if (message.type !== 'collect') throw Error('unexpected message');
+      if (!storage.collectionEnabled) return { ok: false, code: 'disabled' };
+      if (options.collect) return options.collect(message);
+      if (options.failWrite) return { ok: false, code: 'failed' };
+      const value = { ['word:' + message.text]: message.text };
+      writes.push(value);
+      Object.assign(storage, value);
+      return { ok: true };
+    } }
+  };
   vm.runInNewContext(source(), {
     chrome,
     document: {
@@ -66,7 +81,7 @@ function page(storage = {}, options = {}) {
     resize() { windowListeners.resize(); },
     select(value) { selection = value; },
     setRect(value) { rect = value; },
-    currentHost, button, writes, storage
+    currentHost, button, writes, messages, storage
   };
 }
 
@@ -120,7 +135,7 @@ test('slow settings read does not show a window after an outside click', async (
   let release;
   const p = page({}, { selection: 'first', read: () => new Promise(resolve => { release = resolve; }) });
   const pending = p.fire(); p.select('second'); p.outside();
-  release({ collectionEnabled: true }); await pending;
+  release({ enabled: true }); await pending;
   assert.equal(p.currentHost(), undefined);
   assert.equal(p.writes.length, 0);
 });
@@ -187,4 +202,42 @@ test('the second mouseup of a double click does not create a competing window', 
   await p.fire();
   assert.equal(p.button()?.textContent, '收集');
   assert.equal(p.writes.length, 0);
+});
+
+test('only clicking Collect sends the trimmed text to the worker', async () => {
+  const p = page({ collectionEnabled: true }, { selection: '  chosen word  ' });
+  await p.fire();
+  assert.deepEqual(p.messages, [{ type: 'getEnabled' }]);
+  await p.button().dispatch('click');
+  assert.deepEqual(p.messages[1], { type: 'collect', text: 'chosen word' });
+});
+
+test('translation failure leaves the button open for a later retry without leaking text', async () => {
+  let attempts = 0;
+  const p = page({ collectionEnabled: true }, { selection: 'private selected word', collect: async () => {
+    if (++attempts === 1) return { ok: false, code: 'failed' };
+    return { ok: true };
+  } });
+  await p.fire();
+  await p.button().dispatch('click');
+  assert.equal(p.button().textContent, '重试');
+  assert.equal(p.button().disabled, false);
+  assert.doesNotMatch(p.button().title, /private|selected/);
+  assert.equal(p.messages.filter(m => m.type === 'collect').length, 1);
+  await p.button().dispatch('click');
+  assert.equal(p.currentHost(), undefined);
+  assert.equal(attempts, 2);
+});
+
+test('a pending worker request blocks repeated clicks', async () => {
+  let release;
+  const p = page({ collectionEnabled: true }, { selection: 'queued', collect: () => new Promise(resolve => { release = resolve; }) });
+  await p.fire();
+  const button = p.button();
+  const pending = button.dispatch('click');
+  assert.equal(button.disabled, true);
+  await button.dispatch('click');
+  assert.equal(p.messages.filter(m => m.type === 'collect').length, 1);
+  release({ ok: true }); await pending;
+  assert.equal(p.currentHost(), undefined);
 });
