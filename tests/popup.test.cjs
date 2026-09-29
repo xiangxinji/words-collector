@@ -23,19 +23,34 @@ function popup(storage = {}, fail = {}) {
   toggle.checked = false;
   toggle.disabled = true;
   const status = element('p');
+  const translationToggle = element('input');
+  translationToggle.checked = false;
+  translationToggle.disabled = true;
+  const appId = element('input');
+  appId.value = '';
+  const secret = element('input');
+  secret.value = '';
+  const saveCredentials = element('button');
+  const translationStatus = element('p');
+  const levels = [];
   const wordList = element('ul');
   const wordCount = element('span');
   const emptyState = element('p');
   emptyState.hidden = true;
   const listStatus = element('p');
   const elements = {
-    '#collection-toggle': toggle, '#status': status, '#word-list': wordList,
+    '#collection-toggle': toggle, '#status': status, '#translation-toggle': translationToggle,
+    '#baidu-app-id': appId, '#baidu-secret': secret, '#save-credentials': saveCredentials,
+    '#translation-status': translationStatus, '#word-list': wordList,
     '#word-count': wordCount, '#empty-state': emptyState, '#list-status': listStatus
   };
   const chrome = { storage: { local: {
+    async setAccessLevel(level) { if (fail.access) throw Error('access failed'); levels.push({ ...level }); },
     async get(key) {
       if (fail.read) throw Error('read failed');
-      return key === null ? { ...storage } : { [key]: storage[key] };
+      if (key === null) return { ...storage };
+      if (Array.isArray(key)) return Object.fromEntries(key.map(item => [item, storage[item]]));
+      return { [key]: storage[key] };
     },
     async set(values) { if (fail.write) throw Error('write failed'); Object.assign(storage, values); },
     async remove(key) { if (fail.remove) throw Error('remove failed'); delete storage[key]; }
@@ -44,8 +59,11 @@ function popup(storage = {}, fail = {}) {
     document: { querySelector(selector) { return elements[selector]; }, createElement: element }, chrome
   });
   return {
-    toggle, status, wordList, wordCount, emptyState, listStatus, storage,
-    change: () => toggle.dispatch('change'), ready: () => new Promise(setImmediate)
+    toggle, status, translationToggle, appId, secret, saveCredentials, translationStatus, levels,
+    wordList, wordCount, emptyState, listStatus, storage,
+    change: () => toggle.dispatch('change'),
+    changeTranslation: () => translationToggle.dispatch('change'),
+    saveSettings: () => saveCredentials.dispatch('click'), ready: () => new Promise(setImmediate)
   };
 }
 
@@ -142,4 +160,71 @@ test('failed list read reports an error without affecting the toggle', async () 
   assert.match(p.listStatus.textContent, /失败/);
   assert.equal(p.wordList.children.length, 0);
   assert.equal(p.toggle.checked, false);
+});
+
+test('translation is off by default and popup only requests trusted storage access', async () => {
+  const p = popup({ collectionEnabled: true }); await p.ready();
+  assert.equal(p.translationToggle.checked, false);
+  assert.equal(p.translationToggle.disabled, false);
+  assert.deepEqual(p.levels, [{ accessLevel: 'TRUSTED_CONTEXTS' }]);
+  p.translationToggle.checked = true; await p.changeTranslation();
+  assert.equal(p.storage.translationEnabled, true);
+  assert.equal(p.storage.collectionEnabled, true);
+  const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
+  for (const id of ['translation-toggle', 'baidu-app-id', 'baidu-secret', 'save-credentials', 'translation-status']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(html, /id="baidu-secret"[^>]*type="password"|type="password"[^>]*id="baidu-secret"/);
+});
+
+test('credentials save locally, and reopening never displays the saved secret in the password input', async () => {
+  const data = {};
+  const p = popup(data); await p.ready();
+  p.appId.value = ' APP ';
+  p.secret.value = ' SECRET ';
+  await p.saveSettings();
+  assert.equal(data.baiduAppId, 'APP');
+  assert.equal(data.baiduSecret, 'SECRET');
+  assert.equal(p.secret.value, '');
+  const next = popup(data); await next.ready();
+  assert.equal(next.appId.value, 'APP');
+  assert.equal(next.secret.value, '');
+  await next.saveSettings();
+  assert.equal(data.baiduSecret, 'SECRET');
+  next.appId.value = 'OTHER';
+  await next.saveSettings();
+  assert.equal(data.baiduAppId, 'APP');
+  assert.match(next.translationStatus.textContent, /密钥/);
+});
+
+test('setting write failure reverts the translation switch and keeps credentials intact', async () => {
+  const data = { translationEnabled: false, baiduAppId: 'APP', baiduSecret: 'SECRET' };
+  const fail = { write: true };
+  const p = popup(data, fail); await p.ready();
+  p.translationToggle.checked = true; await p.changeTranslation();
+  assert.equal(p.translationToggle.checked, false);
+  assert.match(p.translationStatus.textContent, /失败/);
+  p.secret.value = 'NEW'; await p.saveSettings();
+  assert.equal(data.baiduSecret, 'SECRET');
+  assert.doesNotMatch(p.translationStatus.textContent, /SECRET/);
+});
+
+test('failed trusted access keeps the translation switch disabled and displays an error', async () => {
+  const p = popup({}, { access: true }); await p.ready();
+  assert.equal(p.translationToggle.checked, false);
+  assert.equal(p.translationToggle.disabled, true);
+  assert.match(p.translationStatus.textContent, /失败/);
+});
+
+test('legacy words and translated objects show both texts safely and delete only one key', async () => {
+  const p = popup({ 'word:old': 'old', 'word:world': { text: 'world', translation: '<img src=x>' } });
+  await p.ready();
+  const item = p.wordList.children.find(row => row.children[0].textContent === 'world');
+  assert.equal(item.children[0].textContent, 'world');
+  assert.equal(item.children[1].tagName, 'span');
+  assert.equal(item.children[1].textContent, '<img src=x>');
+  await item.children.at(-1).dispatch('click');
+  assert.equal(p.storage['word:world'], undefined);
+  assert.equal(p.storage['word:old'], 'old');
+  assert.equal(p.wordCount.textContent, '共 1 条');
 });

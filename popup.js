@@ -1,15 +1,37 @@
 const toggle = document.querySelector('#collection-toggle');
 const status = document.querySelector('#status');
+const translationToggle = document.querySelector('#translation-toggle');
+const appIdInput = document.querySelector('#baidu-app-id');
+const secretInput = document.querySelector('#baidu-secret');
+const saveCredentials = document.querySelector('#save-credentials');
+const translationStatus = document.querySelector('#translation-status');
+let savedAppId = '';
+let hasSavedSecret = false;
 
 async function initialize() {
   try {
-    const { collectionEnabled = false } = await chrome.storage.local.get('collectionEnabled');
+    await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+  } catch {
+    status.textContent = '读取设置失败';
+    translationStatus.textContent = '读取翻译设置失败';
+    return;
+  }
+  try {
+    const { collectionEnabled = false, translationEnabled = false, baiduAppId = '', baiduSecret } =
+      await chrome.storage.local.get(['collectionEnabled', 'translationEnabled', 'baiduAppId', 'baiduSecret']);
     toggle.checked = collectionEnabled;
+    translationToggle.checked = translationEnabled;
+    savedAppId = baiduAppId;
+    hasSavedSecret = typeof baiduSecret === 'string' && !!baiduSecret.trim();
+    appIdInput.value = baiduAppId;
   } catch {
     toggle.checked = false;
+    translationToggle.checked = false;
     status.textContent = '读取设置失败';
+    translationStatus.textContent = '读取翻译设置失败';
   } finally {
     toggle.disabled = false;
+    translationToggle.disabled = false;
   }
 }
 
@@ -27,6 +49,42 @@ toggle.addEventListener('change', async () => {
   }
 });
 
+translationToggle.addEventListener('change', async () => {
+  const previous = !translationToggle.checked;
+  translationToggle.disabled = true;
+  translationStatus.textContent = '';
+  try {
+    await chrome.storage.local.set({ translationEnabled: translationToggle.checked });
+  } catch {
+    translationToggle.checked = previous;
+    translationStatus.textContent = '保存翻译设置失败，请重试';
+  } finally {
+    translationToggle.disabled = false;
+  }
+});
+
+saveCredentials.addEventListener('click', async () => {
+  if (saveCredentials.disabled) return;
+  const appId = appIdInput.value.trim();
+  const secret = secretInput.value.trim();
+  translationStatus.textContent = '';
+  if (!appId || (!secret && (!hasSavedSecret || appId !== savedAppId))) {
+    translationStatus.textContent = '请填写 App ID 和密钥';
+    return;
+  }
+  saveCredentials.disabled = true;
+  try {
+    await chrome.storage.local.set({ baiduAppId: appId, ...(secret ? { baiduSecret: secret } : {}) });
+    savedAppId = appId;
+    hasSavedSecret = true;
+    secretInput.value = '';
+    translationStatus.textContent = '凭据已保存';
+  } catch {
+    translationStatus.textContent = '保存凭据失败，请重试';
+  } finally {
+    saveCredentials.disabled = false;
+  }
+});
 const wordList = document.querySelector('#word-list');
 const wordCount = document.querySelector('#word-count');
 const emptyState = document.querySelector('#empty-state');
@@ -61,6 +119,12 @@ async function loadWords() {
         }
       });
       item.appendChild(word);
+      const translation = data[key]?.translation;
+      if (typeof translation === 'string' && translation.trim()) {
+        const translated = document.createElement('span');
+        translated.textContent = translation;
+        item.appendChild(translated);
+      }
       item.appendChild(removeButton);
       wordList.appendChild(item);
     }
