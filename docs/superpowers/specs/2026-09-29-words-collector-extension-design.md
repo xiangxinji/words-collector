@@ -18,7 +18,7 @@
 
 - 根目录 `manifest.json`：声明 Manifest V3、`storage` 权限、HTTP/HTTPS 页面上的静态内容脚本和弹窗；不请求其他权限。
 - 弹窗（`popup.html`、`popup.js`，按需少量 CSS）：初始化时读取 `collectionEnabled`，缺失视为 `false`。用户切换时写入该布尔值；写入失败时恢复之前的界面状态并显示错误，不让弹窗误报已开启。
-- 内容脚本（`content.js`）：监听页面 `dblclick`；忽略发生在输入框或可编辑区域内的双击；其他事件每次读取 `collectionEnabled`，仅在开启时读取 `window.getSelection()` 的文本并 `trim()`。非空时调用 `chrome.storage.local.set({ ["word:" + text]: text })`（例如 `word:hello`）。再次收集完全相同的文字会覆盖同一键，而不是添加重复项；不同页面同时保存不同文字也不会竞争一个共享列表。脚本不干预网站的默认双击行为。
+- 内容脚本（`content.js`）：监听页面 `dblclick`；忽略发生在输入框或可编辑区域内的双击；其他事件立即记录 `window.getSelection()` 的文本并 `trim()`，随后读取 `collectionEnabled`；仅在开关开启且选区非空时调用 `chrome.storage.local.set({ ["word:" + text]: text })`（例如 `word:hello`）。再次收集完全相同的文字会覆盖同一键，而不是添加重复项；不同页面同时保存不同文字也不会竞争一个共享列表。脚本不干预网站的默认双击行为。
 - 切换开关影响切换完成后发生的新双击事件；已开始执行的事件不保证被取消。内容脚本读写异常不应阻止网页操作，也不显示含选中文字的错误日志。
 
 ## 验证
@@ -30,4 +30,3 @@
 ## 不在首版范围
 
 词表展示、删除、导出、跨设备同步、自动分词、大小写归一化、快捷键、右键菜单、动态注入、构建框架或后端服务。
-
