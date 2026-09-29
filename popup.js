@@ -11,6 +11,7 @@ let hasSavedSecret = false;
 async function initialize() {
   try {
     await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+    saveCredentials.disabled = false;
   } catch {
     status.textContent = '读取设置失败';
     translationStatus.textContent = '读取翻译设置失败';

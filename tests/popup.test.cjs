@@ -31,6 +31,7 @@ function popup(storage = {}, fail = {}) {
   const secret = element('input');
   secret.value = '';
   const saveCredentials = element('button');
+  saveCredentials.disabled = true;
   const translationStatus = element('p');
   const levels = [];
   const wordList = element('ul');
@@ -175,6 +176,7 @@ test('translation is off by default and popup only requests trusted storage acce
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /id="baidu-secret"[^>]*type="password"|type="password"[^>]*id="baidu-secret"/);
+  assert.match(html, /id="save-credentials"[^>]*disabled/);
 });
 
 test('credentials save locally, and reopening never displays the saved secret in the password input', async () => {
@@ -213,6 +215,10 @@ test('failed trusted access keeps the translation switch disabled and displays a
   const p = popup({}, { access: true }); await p.ready();
   assert.equal(p.translationToggle.checked, false);
   assert.equal(p.translationToggle.disabled, true);
+  assert.equal(p.saveCredentials.disabled, true);
+  p.appId.value = 'APP'; p.secret.value = 'SECRET';
+  await p.saveSettings();
+  assert.equal(p.storage.baiduSecret, undefined);
   assert.match(p.translationStatus.textContent, /失败/);
 });
 
