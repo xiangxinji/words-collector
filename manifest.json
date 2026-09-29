@@ -4,5 +4,6 @@
   "version": "0.1.0",
   "description": "Save selected webpage text locally when collection is enabled.",
   "permissions": ["storage"],
-  "action": { "default_popup": "popup.html" }
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [{ "matches": ["http://*/*", "https://*/*"], "js": ["content.js"] }]
 }
