@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Words Collector",
+  "version": "0.1.0",
+  "description": "Save selected webpage text locally when collection is enabled.",
+  "permissions": ["storage"],
+  "action": { "default_popup": "popup.html" }
+}

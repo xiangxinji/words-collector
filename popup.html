@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Words Collector</title>
+  <style>
+    body { box-sizing: border-box; width: 250px; margin: 0; padding: 18px; font: 14px/1.5 system-ui, sans-serif; color: #202536; }
+    h1 { font-size: 16px; margin: 0 0 12px; }
+    label { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    input { width: 18px; height: 18px; margin: 0; accent-color: #315dd1; }
+    .hint { color: #5d6475; margin: 12px 0 0; }
+    #status { color: #ac2828; margin: 6px 0 0; }
+    #status:empty { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Words Collector</h1>
+  <label for="collection-toggle">双击收集文字 <input id="collection-toggle" type="checkbox" disabled></label>
+  <p class="hint">开启后，双击网页文字会保存到本地。</p>
+  <p id="status" role="status" aria-live="polite"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
