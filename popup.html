@@ -5,20 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Words Collector</title>
   <style>
-    body { box-sizing: border-box; width: 250px; margin: 0; padding: 18px; font: 14px/1.5 system-ui, sans-serif; color: #202536; }
+    body { box-sizing: border-box; width: 320px; margin: 0; padding: 18px; font: 14px/1.5 system-ui, sans-serif; color: #202536; }
     h1 { font-size: 16px; margin: 0 0 12px; }
     label { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
     input { width: 18px; height: 18px; margin: 0; accent-color: #315dd1; }
     .hint { color: #5d6475; margin: 12px 0 0; }
-    #status { color: #ac2828; margin: 6px 0 0; }
-    #status:empty { display: none; }
+    #status, #list-status { color: #ac2828; margin: 6px 0 0; }
+    #status:empty, #list-status:empty { display: none; }
+    .words-panel { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e5e8ee; }
+    .words-header { display: flex; align-items: baseline; justify-content: space-between; }
+    h2 { margin: 0; font-size: 15px; }
+    #word-count { color: #5d6475; font-size: 12px; }
+    #word-list { max-height: 280px; overflow-y: auto; list-style: none; margin: 10px 0 0; padding: 0; }
+    #word-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; border-bottom: 1px solid #eff1f5; }
+    #word-list li span { min-width: 0; overflow-wrap: anywhere; }
+    #word-list button { flex: none; min-width: 44px; min-height: 44px; border: 0; border-radius: 6px; padding: 8px; background: transparent; color: #a52a36; font: inherit; cursor: pointer; }
+    #word-list button:hover { background: #fff0f1; }
+    #word-list button:focus-visible { outline: 2px solid #315dd1; outline-offset: 2px; }
+    #word-list button:disabled { opacity: .5; cursor: wait; }
+    #empty-state { color: #5d6475; margin: 14px 0 0; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <h1>Words Collector</h1>
-  <label for="collection-toggle">双击收集文字 <input id="collection-toggle" type="checkbox" disabled></label>
-  <p class="hint">开启后，双击网页文字会保存到本地。</p>
+  <label for="collection-toggle">显示收集按钮 <input id="collection-toggle" type="checkbox" disabled></label>
+  <p class="hint">开启后，双击或拖拽选中文字，再点旁边的「收集」按钮保存。</p>
   <p id="status" role="status" aria-live="polite"></p>
+  <section class="words-panel" aria-labelledby="words-title">
+    <div class="words-header"><h2 id="words-title">已收集</h2><span id="word-count"></span></div>
+    <ul id="word-list"></ul>
+    <p id="empty-state" hidden>还没有收集文字。去网页双击选词试试吧。</p>
+    <p id="list-status" role="status" aria-live="polite"></p>
+  </section>
   <script src="popup.js"></script>
 </body>
 </html>
